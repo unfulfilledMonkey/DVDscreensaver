@@ -59,10 +59,11 @@ void marqueeThreadFunc(std::string text){
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     const int screenWidth = csbi.dwSize.X;
+    const int bannerHeight = 3; // 3 lines for banner
     const int screenHeight = csbi.dwSize.Y - 2; //avoid top and input line
 
     double currentX = 0.0;
-    double currentY = 1.0; //start below welcome message
+    double currentY = static_cast<double>(bannerHeight); //start below welcome message
 
     int targetX = rand() % (screenWidth - text.length());
     int targetY = 1 + rand() % (screenHeight - 1);
@@ -137,7 +138,9 @@ void inputThreadFunc(){
     {
         std::lock_guard<std::mutex> lock(consoleMutex);
         setCursorPosition(0, 0);
-        std::cout << "Displaying a marquee console!" << std::flush;
+        std::cout << "******************************\n" << std::flush;
+        std::cout << "* Displaying a marquee console! * \n" << std::flush;
+        std::cout << "******************************\n" << std::flush;
     }
 
     while(!stopProgram){
@@ -152,7 +155,7 @@ void inputThreadFunc(){
             char ch =_getch();
             if(ch == '\r'){//enter is pressed
                 if(inputBuffer == "exit"){
-                    std::cout << "See you again! :-)";
+                    std::cout << "\nSee you again! :-)";
                     Sleep(3000);
                     stopProgram = true;
                 }
