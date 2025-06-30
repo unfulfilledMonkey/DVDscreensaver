@@ -65,8 +65,9 @@ void marqueeThreadFunc(std::string text){
     double currentX = 0.0;
     double currentY = static_cast<double>(bannerHeight); //start below welcome message
 
-    int targetX = rand() % (screenWidth - text.length());
-    int targetY = 1 + rand() % (screenHeight - 1);
+    //speed and direction
+    double dx = 0.2;
+    double dy =0.2;
 
     const double speed = 1.0;
     std::string eraser(text.length(), ' ');
@@ -84,35 +85,34 @@ void marqueeThreadFunc(std::string text){
                 std::cout << eraser;
             }
 
-            //randomize new target occasionally
-            if(std::abs(currentX - targetX) < 1.0 && std::abs(currentY - targetY) < 1.0
-               || rand() % 10 == 0){
-                    targetX = rand() % (screenWidth - text.length());
-                    targetY = 1 + rand() % (screenHeight - 1);
+            //move position
+            currentX += dx;
+            currentY += dy;
+
+            //direction vector (bounce on edges while respecting banner)
+            if(currentX <= 0 || currentX + text.length() >= screenWidth){
+                dx = -dx;
             }
-
-            //direction vector
-            double dirX = targetX - currentX;
-            double dirY = targetY - currentY;
-            double distance = std::sqrt(dirX * dirX + dirY * dirY);
-
-            if(distance > 0){
-                currentX += (dirX/distance) * speed;
-                currentY += (dirY/distance) * speed;
+            if(currentY <= bannerHeight || currentY >= screenHeight - 1){
+                dy = -dy;
             }
 
             //clamp and draw
+            if(currentX < 0){
+                currentX = 0;
+            }
+            if(currentX + text.length() >= screenWidth){
+                currentX = screenWidth - text.length() -1;
+            }
+            if(currentY < bannerHeight){
+                currentY = bannerHeight;
+            }
+            if(currentY >= screenHeight - 1){
+                currentY = screenHeight - 2;
+            }
+
             int drawX = static_cast<int>(currentX);
             int drawY = static_cast<int>(currentY);
-            if(drawY < 1){
-                drawY = 1;
-            }
-            if(drawX + text.length() >= screenWidth){
-                drawX = screenWidth - text.length() - 1;
-            }
-            if(drawY >= screenHeight -1){
-                drawY = screenHeight - 2;
-            }
 
             setCursorPosition(drawX, drawY);
             std::cout << text << std::flush;
