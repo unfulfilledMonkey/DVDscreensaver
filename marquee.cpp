@@ -55,24 +55,30 @@ void clearScreen(){
 //thread functions
 
 //thread function for console animation
-void marqueeThreadFunc(std::string text){
+void marqueeThreadFunc(const std::vector<std::string>& logo){
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     const int screenWidth = csbi.dwSize.X;
     const int bannerHeight = 3; // 3 lines for banner
     const int screenHeight = csbi.dwSize.Y - 2; //avoid top and input line
 
+    //calculate logo dimensions
+    int logoHeight = static_cast<int>(logo.size());
+    int logoWidth = 0;
+    for(const auto& line : logo){
+        if(static_cast<int>(line.length()) > logoWidth){
+            logoWidth = static_cast<int>(line.length());
+        }
+    }
+
     double currentX = 0.0;
     double currentY = static_cast<double>(bannerHeight); //start below welcome message
 
     //speed and direction
     double dx = 0.2;
-    double dy =0.2;
+    double dy = 0.2;
 
-    const double speed = 1.0;
-    std::string eraser(text.length(), ' ');
-
-    int lastDrawX = - 1;
+    int lastDrawX = -1;
     int lastDrawY = -1;
 
     while(!stopProgram){
@@ -80,9 +86,11 @@ void marqueeThreadFunc(std::string text){
             std::lock_guard<std::mutex> lock(consoleMutex);
 
             //erase previous text
-            if(lastDrawX != -1){
-                setCursorPosition(lastDrawX, lastDrawY);
-                std::cout << eraser;
+            if(lastDrawX != -1 && lastDrawY != -1){
+               for(int i=0; i < logoHeight; i++){
+                    setCursorPosition(lastDrawX, lastDrawY + i);
+                    std::cout << std::string(logoWidth, ' ');
+               }
             }
 
             //move position
@@ -90,32 +98,35 @@ void marqueeThreadFunc(std::string text){
             currentY += dy;
 
             //direction vector (bounce on edges while respecting banner)
-            if(currentX <= 0 || currentX + text.length() >= screenWidth){
+            if(currentX <= 0 || currentX + logoWidth >= screenWidth){
                 dx = -dx;
             }
-            if(currentY <= bannerHeight || currentY >= screenHeight - 1){
+            if(currentY <= bannerHeight || currentY + logoHeight >= screenHeight - 1){
                 dy = -dy;
             }
 
-            //clamp and draw
+            //clamp text position 
             if(currentX < 0){
                 currentX = 0;
             }
-            if(currentX + text.length() >= screenWidth){
-                currentX = screenWidth - text.length() -1;
+            if(currentX + logoWidth >= screenWidth){
+                currentX = screenWidth - logoWidth -1;
             }
             if(currentY < bannerHeight){
                 currentY = bannerHeight;
             }
-            if(currentY >= screenHeight - 1){
-                currentY = screenHeight - 2;
+            if(currentY + logoHeight >= screenHeight - 1){
+                currentY = screenHeight - logoHeight - 1;
             }
 
             int drawX = static_cast<int>(currentX);
             int drawY = static_cast<int>(currentY);
 
-            setCursorPosition(drawX, drawY);
-            std::cout << text << std::flush;
+            //draw logo
+            for(int i=0; i < logoHeight; i++){
+                setCursorPosition(drawX, drawY + i);
+                std::cout << logo[i] << std::flush;
+            }
 
             lastDrawX = drawX;
             lastDrawY = drawY;
@@ -138,9 +149,10 @@ void inputThreadFunc(){
     {
         std::lock_guard<std::mutex> lock(consoleMutex);
         setCursorPosition(0, 0);
-        std::cout << "******************************\n" << std::flush;
-        std::cout << "* Displaying a marquee console! * \n" << std::flush;
-        std::cout << "******************************\n" << std::flush;
+        std::cout << "**************************************\n" << std::flush;
+        //might need to remove the \033[3m ... \033[0m if terminal doesn't support
+        std::cout << "* DVD Logo goes \033[3mboing boing\033[0m hehe :-) *\n" << std::flush;
+        std::cout << "**************************************" << std::flush;
     }
 
     while(!stopProgram){
@@ -168,19 +180,28 @@ void inputThreadFunc(){
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
 }
 
 //main function
 int main(){
+    SetConsoleOutputCP(CP_UTF8); // for ascii art
     srand(static_cast<unsigned int>(time(nullptr)));
     hideCursor();
     clearScreen();
 
-    std::string message = "Hello WWOrld!";
+    std::vector<std::string> logo = {
+        " ⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣶⣦",
+        "⢠⣿⣿⡿⠀⠀⠈⢹⣿⣿⡿⣿⣿⣇⠀⣠⣿⣿⠟⣽⣿⣿⠇⠀⠀⢹⣿⣿⣿",
+        "⢸⣿⣿⡇⠀⢀⣠⣾⣿⡿⠃⢹⣿⣿⣶⣿⡿⠋⢰⣿⣿⡿⠀⠀⣠⣼⣿⣿⠏",
+        "⣿⣿⣿⣿⣿⣿⠿⠟⠋⠁⠀⠀⢿⣿⣿⠏⠀⠀⢸⣿⣿⣿⣿⣿⡿⠟⠋⠁⠀",
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣀⣸⣟⣁⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
+        "⣠⣴⣶⣾⣿⣿⣻⡟⣻⣿⢻⣿⡟⣛⢻⣿⡟⣛⣿⡿⣛⣛⢻⣿⣿⣶⣦⣄⡀",
+        "⠉⠛⠻⠿⠿⠿⠷⣼⣿⣿⣼⣿⣧⣭⣼⣿⣧⣭⣿⣿⣬⡭⠾⠿⠿⠿⠛⠉⠀"
+    };
 
-    std::thread marquee(marqueeThreadFunc, message);
+    std::thread marquee(marqueeThreadFunc, std::cref(logo));
     std::thread input(inputThreadFunc);
 
     marquee.join();
